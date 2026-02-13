@@ -509,7 +509,8 @@ app.post('/api/profile/upload', async (req, res) => {
 const distPath = path.join(__dirname, '../dist');
 if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Express 5 requires named parameter for wildcards
+    app.get('/{*splat}', (req, res) => {
         // Only fallback if not an API request
         if (!req.path.startsWith('/api')) {
             res.sendFile(path.join(distPath, 'index.html'));
