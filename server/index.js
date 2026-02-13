@@ -6,7 +6,10 @@ const crypto = require('crypto');
 const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
+const envPath = fs.existsSync(path.join(__dirname, '../.env.local'))
+    ? path.join(__dirname, '../.env.local')
+    : path.join(__dirname, '../.env');
+require('dotenv').config({ path: envPath });
 const { sendWhatsApp } = require('./fonnte');
 
 const app = express();
