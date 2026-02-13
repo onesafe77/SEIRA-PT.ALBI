@@ -1,13 +1,13 @@
+/// <reference types="vite/client" />
 /**
  * Menghasilkan URL dasar API secara dinamis.
  * - Local Dev: Menggunakan http://hostname:5000 (Cross-origin)
  * - Production: Menggunakan path relatif (Same-origin)
  */
 export const getApiBaseUrl = () => {
-    const { hostname, protocol, port } = window.location;
-
-    // Jika sedang dalam mode pengembangan (Vite port 3000)
-    if (port === '3000' || port === '5173') {
+    // Jika sedang dalam mode pengembangan (Vite dev server)
+    if (import.meta.env.DEV) {
+        const { hostname, protocol } = window.location;
         return `${protocol}//${hostname}:5000`;
     }
 
