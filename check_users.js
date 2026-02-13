@@ -1,0 +1,27 @@
+import pkg from 'pg';
+const { Pool } = pkg;
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env.local') });
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
+async function checkUsers() {
+    try {
+        const res = await pool.query('SELECT name, role, position, employee_id FROM users');
+        console.log(JSON.stringify(res.rows, null, 2));
+    } catch (err) {
+        console.error(err);
+    } finally {
+        await pool.end();
+    }
+}
+
+checkUsers();

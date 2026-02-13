@@ -1,0 +1,17 @@
+{
+    "name": "SIERAAA - ERT Gear & P2H",
+    "short_name": "SIERAAA",
+    "description": "Mining Safety & Inspection Assistant",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#F1F5F9",
+    "theme_color": "#2563EB",
+    "icons": [
+        {
+            "src": "/icon.jpeg",
+            "sizes": "192x192 512x512",
+            "type": "image/jpeg",
+            "purpose": "any maskable"
+        }
+    ]
+}
