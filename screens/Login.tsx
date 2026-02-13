@@ -46,7 +46,9 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
       onNavigate('home');
     } catch (err: any) {
       console.error('Login error detail:', err);
-      setError(`${err.message} (URL: ${API_BASE_URL})`);
+      // Show clearer error message
+      const errorMsg = err.message || 'Terjadi kesalahan';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
