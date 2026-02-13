@@ -61,11 +61,13 @@ pool.query('SELECT NOW()', (err, res) => {
 // Login Endpoint
 app.post('/api/login', async (req, res) => {
     const { employeeId, password } = req.body;
+    console.log(`Login attempt for: ${employeeId} from ${req.ip}`);
 
     try {
         const result = await pool.query('SELECT * FROM users WHERE employee_id = $1', [employeeId]);
 
         if (result.rows.length === 0) {
+            console.log(`[LOGIN FAILED] ID Pegawai tidak ditemukan: ${employeeId}`);
             return res.status(401).json({ message: 'ID Pegawai tidak ditemukan' });
         }
 
@@ -73,8 +75,11 @@ app.post('/api/login', async (req, res) => {
 
         // Simple password check (should use bcrypt in production)
         if (password !== user.password) {
+            console.log(`[LOGIN FAILED] Kata sandi salah untuk: ${employeeId}`);
             return res.status(401).json({ message: 'Kata sandi salah' });
         }
+
+        console.log(`[LOGIN SUCCESS] User: ${employeeId} (${user.name})`);
 
         if (!process.env.JWT_SECRET) {
             throw new Error('JWT_SECRET is not defined');
@@ -497,6 +502,18 @@ app.post('/api/profile/upload', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+// Serve static frontend files in production
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+        // Only fallback if not an API request
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(distPath, 'index.html'));
+        }
+    });
+}
+
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

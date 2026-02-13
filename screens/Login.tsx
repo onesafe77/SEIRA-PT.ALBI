@@ -23,6 +23,7 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
     setError(null);
 
     try {
+      console.log(`Attempting login at: ${API_BASE_URL}/api/login`);
       const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
@@ -31,11 +32,12 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
         body: JSON.stringify({ employeeId, password }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || 'Login gagal. Silakan coba lagi.');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || `Login gagal (${response.status})`);
       }
+
+      const data = await response.json();
 
       // Store token and user data
       localStorage.setItem('token', data.token);
@@ -43,7 +45,8 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
 
       onNavigate('home');
     } catch (err: any) {
-      setError(err.message);
+      console.error('Login error detail:', err);
+      setError(`${err.message} (URL: ${API_BASE_URL})`);
     } finally {
       setLoading(false);
     }

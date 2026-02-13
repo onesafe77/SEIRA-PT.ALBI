@@ -9,7 +9,7 @@ const pool = new Pool({
 
 async function checkMuhda() {
     try {
-        const res = await pool.query("SELECT name, role, position, employee_id FROM users WHERE name ILIKE '%Muhda%'");
+        const res = await pool.query("SELECT name, role, position, employee_id, password FROM users WHERE name ILIKE '%Muhda%'");
         console.log(JSON.stringify(res.rows, null, 2));
     } catch (err) {
         console.error(err);

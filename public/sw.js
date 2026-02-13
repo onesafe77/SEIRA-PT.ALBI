@@ -3,10 +3,13 @@ const ASSETS = [
     '/',
     '/index.html',
     '/index.css',
-    '/index.tsx',
     '/icon.jpeg',
+    '/wallpaper.jpeg',
+    '/logo_final.png',
     'https://cdn.tailwindcss.com',
-    'https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;700&display=swap'
+    'https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;700&display=swap',
+    'https://esm.sh/react@^19.2.3',
+    'https://esm.sh/react-dom@^19.2.3'
 ];
 
 self.addEventListener('install', (event) => {
