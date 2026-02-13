@@ -1,24 +1,22 @@
 /// <reference types="vite/client" />
 /**
- * Menghasilkan URL dasar API secara dinamis.
- * - Local Dev: Menggunakan http://hostname:5000 (Cross-origin)
- * - Production: Menggunakan origin yang sama (Same-origin)
+ * API Base URL Configuration
+ * - Production: Empty string (same-origin relative path)
+ * - Development: http://localhost:5000
  */
-export const getApiBaseUrl = () => {
-    const { hostname, protocol, port } = window.location;
+export const getApiBaseUrl = (): string => {
+    // Cek apakah kita di localhost (development)
+    const isLocalhost = typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-    // Deteksi environment berdasarkan hostname dan port
-    // Development: localhost atau 127.0.0.1 dengan port 3000
-    const isLocalDev = (hostname === 'localhost' || hostname === '127.0.0.1') && (port === '3000' || port === '');
-
-    if (isLocalDev || import.meta.env.DEV) {
-        // Development: API server berjalan di port 5000
-        return `${protocol}//${hostname}:5000`;
+    if (isLocalhost) {
+        // Development: gunakan port 5000 untuk API server
+        return `${window.location.protocol}//${window.location.hostname}:5000`;
     }
 
-    // Production (Railway atau hosting lain): API disajikan dari origin yang sama
-    // Menggunakan origin saat ini untuk request API
-    return window.location.origin;
+    // Production: gunakan empty string untuk same-origin relative path
+    // fetch('/api/login') akan otomatis menggunakan origin yang sama
+    return '';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
