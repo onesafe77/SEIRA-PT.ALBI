@@ -10,7 +10,7 @@ const envPath = fs.existsSync(path.join(__dirname, '../.env.local'))
     ? path.join(__dirname, '../.env.local')
     : path.join(__dirname, '../.env');
 require('dotenv').config({ path: envPath });
-const { sendWhatsApp } = require('./fonnte');
+const { sendWhatsApp } = require('./fonnte.cjs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
