@@ -3,6 +3,7 @@ import { LogOut, Globe, Bell, Info, Shield, WifiOff, ChevronRight, User, Setting
 import { Button } from '../components/Button';
 import { ScreenName } from '../types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { API_BASE_URL } from '../utils/api';
 
 interface ProfileProps {
   onNavigate: (screen: ScreenName) => void;
@@ -26,7 +27,7 @@ export const ProfileScreen: React.FC<ProfileProps> = ({ onNavigate }) => {
     // Fetch Stats
     const token = localStorage.getItem('token');
     if (token) {
-      fetch('http://localhost:5000/api/profile/stats', {
+      fetch(`${API_BASE_URL}/api/profile/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -76,7 +77,7 @@ export const ProfileScreen: React.FC<ProfileProps> = ({ onNavigate }) => {
 
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/profile/upload', {
+        const res = await fetch(`${API_BASE_URL}/api/profile/upload`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { ScreenName } from '../types';
 import { Logo } from '../components/Logo';
+import { API_BASE_URL } from '../utils/api';
 
 interface LoginProps {
   onNavigate: (screen: ScreenName) => void;
@@ -22,7 +23,7 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

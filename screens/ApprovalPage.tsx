@@ -4,6 +4,7 @@ import { SignaturePad } from '../components/SignaturePad';
 import { Button } from '../components/Button'; // Assuming Button is in components folder
 import { Check, X, AlertTriangle, CheckCircle, Calendar, Hash, User, Clock, ChevronDown, ChevronUp, Download, ArrowLeft } from 'lucide-react';
 import { generateP2HPDF } from '../utils/pdfGenerator';
+import { API_BASE_URL } from '../utils/api';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SuccessModal } from '../components/SuccessModal';
 
@@ -41,7 +42,7 @@ export const ApprovalPage: React.FC<ApprovalPageProps> = ({ token, onBack }) => 
 
     const fetchData = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/approve/${token}`);
+            const res = await fetch(`${API_BASE_URL}/api/approve/${token}`);
             if (!res.ok) {
                 const json = await res.json();
                 throw new Error(json.message || 'Gagal memuat data inspeksi');
@@ -92,7 +93,7 @@ export const ApprovalPage: React.FC<ApprovalPageProps> = ({ token, onBack }) => 
         setShowConfirm(false);
         setApproving(true);
         try {
-            const res = await fetch(`http://localhost:5000/api/approve/${token}`, {
+            const res = await fetch(`${API_BASE_URL}/api/approve/${token}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ supervisorSignature: signature })

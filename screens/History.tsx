@@ -5,6 +5,7 @@ import { Card, StatusPill, SeverityBadge } from '../components/Card';
 import { generateP2HPDF } from '../utils/pdfGenerator';
 import { EXCAVATOR_P2H_DATA } from '../data/excavatorP2H';
 import { Download } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 interface HistoryScreenProps {
   onViewInspection?: (token: string) => void;
@@ -19,7 +20,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ onViewInspection }
   React.useEffect(() => {
     const token = localStorage.getItem('token');
 
-    fetch('http://localhost:5000/api/inspections', {
+    fetch(`${API_BASE_URL}/api/inspections`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

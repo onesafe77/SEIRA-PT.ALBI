@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Image as ImageIcon, Bot, Sparkles, RefreshCw, MoreVertical } from 'lucide-react';
 import { ChatMessage } from '../types';
 import { QUICK_PROMPTS } from '../constants';
+import { API_BASE_URL } from '../utils/api';
 
 
 export const ChatScreen: React.FC = () => {
@@ -35,7 +36,7 @@ export const ChatScreen: React.FC = () => {
     setIsThinking(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,8 +147,8 @@ export const ChatScreen: React.FC = () => {
 
               <div className={`max-w-[80%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className={`px-5 py-3.5 text-[15px] leading-relaxed shadow-sm transition-all ${isUser
-                    ? 'bg-blue-600 text-white rounded-t-[24px] rounded-bl-[24px] rounded-br-[6px] shadow-blue-500/20'
-                    : 'bg-white text-slate-700 border border-slate-100 rounded-t-[24px] rounded-br-[24px] rounded-bl-[6px] shadow-card'
+                  ? 'bg-blue-600 text-white rounded-t-[24px] rounded-bl-[24px] rounded-br-[6px] shadow-blue-500/20'
+                  : 'bg-white text-slate-700 border border-slate-100 rounded-t-[24px] rounded-br-[24px] rounded-bl-[6px] shadow-card'
                   }`}>
                   {msg.text}
                 </div>

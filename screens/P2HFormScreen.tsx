@@ -9,6 +9,7 @@ interface P2HFormScreenProps {
 }
 
 import { SuccessModal } from '../components/SuccessModal';
+import { API_BASE_URL } from '../utils/api';
 
 export const P2HFormScreen: React.FC<P2HFormScreenProps> = ({ onNavigate }) => {
     const [showSuccess, setShowSuccess] = React.useState(false);
@@ -33,7 +34,7 @@ export const P2HFormScreen: React.FC<P2HFormScreenProps> = ({ onNavigate }) => {
                 answers: data.answers
             };
 
-            const response = await fetch('http://localhost:5000/api/inspections', {
+            const response = await fetch(`${API_BASE_URL}/api/inspections`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

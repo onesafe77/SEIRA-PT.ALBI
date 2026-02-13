@@ -4,6 +4,7 @@ import { Card } from '../components/Card';
 import { MOCK_KPI, MOCK_INSPECTIONS } from '../constants';
 import { ScreenName } from '../types';
 import { Logo } from '../components/Logo';
+import { API_BASE_URL } from '../utils/api';
 
 interface HomeProps {
     onNavigate: (screen: ScreenName) => void;
@@ -33,7 +34,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                     const token = localStorage.getItem('token');
                     if (!token) throw new Error('No auth token');
 
-                    const res = await fetch('http://localhost:5000/api/inspections/summary', {
+                    const res = await fetch(`${API_BASE_URL}/api/inspections/summary`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
 

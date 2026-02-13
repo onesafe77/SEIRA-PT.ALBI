@@ -6,6 +6,7 @@ import { Input } from '../components/Input';
 import { MOCK_INSPECTIONS } from '../constants';
 
 import { ScreenName } from '../types';
+import { API_BASE_URL } from '../utils/api';
 
 interface InspectionScreenProps {
     onNavigate?: (screen: ScreenName) => void;
@@ -18,7 +19,7 @@ export const InspectionScreen: React.FC<InspectionScreenProps> = ({ onNavigate, 
 
     React.useEffect(() => {
         const token = localStorage.getItem('token');
-        fetch('http://localhost:5000/api/inspections', {
+        fetch(`${API_BASE_URL}/api/inspections`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
