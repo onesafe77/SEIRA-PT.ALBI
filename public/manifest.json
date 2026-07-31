@@ -1,7 +1,7 @@
 {
-    "name": "SIERAAA - ERT Gear & P2H",
-    "short_name": "SIERAAA",
-    "description": "Mining Safety & Inspection Assistant",
+    "name": "SIERA - Prosedur, K3 & P2H",
+    "short_name": "SIERA",
+    "description": "Asisten prosedur, K3, dan inspeksi P2H PT Alam Lestari Baratamaindo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F1F5F9",

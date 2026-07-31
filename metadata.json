@@ -1,6 +1,6 @@
 {
-  "name": "ERT Inspection",
-  "description": "Aplikasi inspeksi modern untuk enterprise dengan dukungan AI.",
+  "name": "SIERA",
+  "description": "Asisten prosedur, K3, dan inspeksi P2H dengan dukungan AI.",
   "requestFramePermissions": [
     "camera",
     "microphone"

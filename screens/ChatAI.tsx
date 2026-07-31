@@ -81,6 +81,20 @@ export const ChatScreen: React.FC = () => {
 
   const authHeader = () => ({ 'Authorization': `Bearer ${localStorage.getItem('token')}` });
 
+  // Sapaan pakai nama depan operator, mengikuti pola di layar Home
+  const firstName = (() => {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored && stored !== 'undefined') {
+        const name = JSON.parse(stored)?.name;
+        if (name) return name.split(' ')[0];
+      }
+    } catch (e) {
+      console.error('Error parsing user data:', e);
+    }
+    return null;
+  })();
+
   const openHistory = async () => {
     setShowHistory(true);
     setConfirmDeleteId(null);
@@ -227,8 +241,8 @@ export const ChatScreen: React.FC = () => {
             <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
           </div>
           <div>
-            <h1 className="font-bold text-slate-800 text-lg leading-tight">ERT AI</h1>
-            <p className="text-xs text-slate-500 font-medium">Safety Assistant</p>
+            <h1 className="font-bold text-slate-800 text-lg leading-tight">SIERA AI</h1>
+            <p className="text-xs text-slate-500 font-medium">Asisten Prosedur &amp; K3</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -345,9 +359,11 @@ export const ChatScreen: React.FC = () => {
             <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-float mb-6">
               <Sparkles size={40} className="text-blue-500" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Halo, Chief! 👋</h2>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">
+              Halo, {firstName || 'Rekan'}! 👋
+            </h2>
             <p className="text-slate-500 text-center max-w-[250px] leading-relaxed mb-8">
-              Saya siap membantu analisa P2H, prosedur safety, atau cek status alat.
+              Tanya soal P2H, K3, atau tanggap darurat. Jawaban saya berdasarkan dokumen prosedur resmi ALBI.
             </p>
             <div className="grid grid-cols-1 gap-3 w-full max-w-xs">
               {QUICK_PROMPTS.slice(0, 3).map((prompt, idx) => (

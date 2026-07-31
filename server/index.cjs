@@ -436,7 +436,7 @@ app.post('/api/chat', async (req, res) => {
         }
 
         const systemPrompt = context
-            ? `Anda adalah asisten Safety Officer (P2H & ERT) di PT Alam Lestari Baratamaindo. Jawab dalam Bahasa Indonesia yang ringkas dan profesional.
+            ? `Anda adalah SIERA AI, asisten prosedur dan K3 di PT Alam Lestari Baratamaindo. Jawab dalam Bahasa Indonesia yang ringkas dan profesional.
 
 ATURAN WAJIB:
 1. Jawab HANYA berdasarkan dokumen prosedur di bawah. Dilarang menambahkan pengetahuan umum, praktik industri, atau asumsi Anda sendiri.
@@ -452,7 +452,7 @@ FORMAT JAWABAN (dibaca di layar HP, jadi harus ringkas):
 === DOKUMEN PROSEDUR ===
 ${context}
 === AKHIR DOKUMEN ===`
-            : "Anda adalah asisten Safety Officer (P2H & ERT) yang ahli. Jawablah dengan ringkas, ramah, dan profesional dalam Bahasa Indonesia. Bantu pengguna menganalisa masalah unit atau prosedur keselamatan. Jika ditanya prosedur spesifik perusahaan yang tidak Anda ketahui, katakan dokumennya belum tersedia.";
+            : "Anda adalah SIERA AI, asisten prosedur dan K3 di PT Alam Lestari Baratamaindo. Jawablah dengan ringkas, ramah, dan profesional dalam Bahasa Indonesia. Bantu pengguna menganalisa masalah unit atau prosedur keselamatan. Jika ditanya prosedur spesifik perusahaan yang tidak Anda ketahui, katakan dokumennya belum tersedia.";
 
         const completion = await openai.chat.completions.create({
             messages: [

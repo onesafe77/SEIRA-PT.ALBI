@@ -230,7 +230,7 @@ export const ProfileScreen: React.FC<ProfileProps> = ({ onNavigate }) => {
 
           <div className="mt-8 text-center opacity-60">
             <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
-              ERT Gear System
+              SIERA System
             </p>
             <p className="text-[9px] text-slate-300 mt-1">
               v3.0.1 (Build 20240820)

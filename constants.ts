@@ -27,8 +27,8 @@ export const MOCK_INSPECTIONS: Inspection[] = [
 ];
 
 export const QUICK_PROMPTS = [
-  "Ringkas inspeksi",
-  "Analisa temuan",
-  "Buat tindakan korektif",
-  "Klasifikasi severity"
+  "Prosedur LOTO",
+  "Langkah tanggap darurat",
+  "Cara pengisian fuel yang benar",
+  "Penanganan limbah B3"
 ];
