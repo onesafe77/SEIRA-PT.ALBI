@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, QrCode, Truck, Wrench, History } from 'lucide-react';
+import { Search, QrCode, Truck, Wrench, History as HistoryIcon } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card, StatusPill } from '../components/Card';
 import { Input } from '../components/Input';
@@ -73,7 +73,7 @@ export const InspectionScreen: React.FC<InspectionScreenProps> = ({ onNavigate, 
                         <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
                             Baru Dilihat
                         </h2>
-                        <History size={16} className="text-slate-300" />
+                        <HistoryIcon size={16} className="text-slate-300" />
                     </div>
 
                     <div className="space-y-4">

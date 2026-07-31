@@ -1,5 +1,6 @@
 import React from 'react';
-import { Home, ClipboardList, Bot, History, User } from 'lucide-react';
+// History dialiaskan: namanya bentrok dengan konstruktor global window.History
+import { Home, ClipboardList, Bot, History as HistoryIcon, User } from 'lucide-react';
 import { ScreenName, NavItem } from '../types';
 
 interface BottomNavProps {
@@ -12,7 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate 
     { id: 'home', label: 'Home', icon: Home },
     { id: 'inspection', label: 'Inspeksi', icon: ClipboardList, badge: '2' },
     { id: 'chat', label: 'Chat AI', icon: Bot, badge: true },
-    { id: 'history', label: 'Riwayat', icon: History, badge: true },
+    { id: 'history', label: 'Riwayat', icon: HistoryIcon, badge: true },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 

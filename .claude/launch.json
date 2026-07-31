@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "seira-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "seira-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 5050,
+      "autoPort": false
+    }
+  ]
+}

@@ -10,8 +10,8 @@ export const getApiBaseUrl = (): string => {
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
     if (isLocalhost) {
-        // Development: gunakan port 5000 untuk API server
-        return `${window.location.protocol}//${window.location.hostname}:5000`;
+        // Development: gunakan port 5050 untuk API server
+        return `${window.location.protocol}//${window.location.hostname}:5050`;
     }
 
     // Production: gunakan empty string untuk same-origin relative path

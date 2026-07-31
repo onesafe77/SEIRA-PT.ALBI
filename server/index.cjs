@@ -11,6 +11,7 @@ const envPath = fs.existsSync(path.join(__dirname, '../.env.local'))
     : path.join(__dirname, '../.env');
 require('dotenv').config({ path: envPath });
 const { sendWhatsApp } = require('./fonnte.cjs');
+const rag = require('./rag.cjs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -58,8 +59,44 @@ pool.query('SELECT NOW()', (err, res) => {
             `ALTER TABLE inspections ADD COLUMN IF NOT EXISTS supervisor_signature TEXT`,
         ];
         alterQueries.forEach(q => pool.query(q).catch(e => console.error('Alter table:', e.message)));
+
+        // Riwayat chat: satu baris percakapan, banyak baris pesan di bawahnya
+        const chatTables = [
+            `CREATE TABLE IF NOT EXISTS chat_conversations (
+                id SERIAL PRIMARY KEY,
+                employee_id VARCHAR(50) NOT NULL,
+                title TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            `CREATE TABLE IF NOT EXISTS chat_messages (
+                id SERIAL PRIMARY KEY,
+                conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+                role VARCHAR(10) NOT NULL,
+                content TEXT NOT NULL,
+                sources JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            `CREATE INDEX IF NOT EXISTS chat_conversations_employee_idx
+                ON chat_conversations (employee_id, updated_at DESC)`,
+            `CREATE INDEX IF NOT EXISTS chat_messages_conversation_idx
+                ON chat_messages (conversation_id, id)`,
+        ];
+        chatTables.forEach(q => pool.query(q).catch(e => console.error('Chat table:', e.message)));
     }
 });
+
+// Ambil employeeId dari token. Mengembalikan null kalau tidak login,
+// supaya chat tetap bisa dipakai walau riwayatnya tidak tersimpan.
+function getEmployeeId(req) {
+    try {
+        const token = (req.headers['authorization'] || '').split(' ')[1];
+        if (!token) return null;
+        return jwt.verify(token, process.env.JWT_SECRET).employeeId || null;
+    } catch {
+        return null;
+    }
+}
 
 // Login Endpoint
 app.post('/api/login', async (req, res) => {
@@ -374,25 +411,164 @@ app.post('/api/chat', async (req, res) => {
 
         console.log("AI Chat Request:", message);
 
-        if (!process.env.OPENAI_API_KEY) {
-            return res.status(500).json({ message: 'OpenAI API Key not configured' });
+        if (!process.env.OPENROUTER_API_KEY) {
+            return res.status(500).json({ message: 'OpenRouter API Key not configured' });
         }
 
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const openai = new OpenAI({
+            apiKey: process.env.OPENROUTER_API_KEY,
+            baseURL: 'https://openrouter.ai/api/v1',
+        });
+
+        // RAG: ambil potongan prosedur yang relevan sebagai konteks jawaban
+        let context = '';
+        let sources = [];
+        try {
+            const hits = (await rag.search(pool, message, 8)).filter(h => h.score > 0.25);
+            if (hits.length) {
+                context = hits
+                    .map((h, i) => `[${i + 1}] Sumber: ${h.title || h.source}\n${h.content}`)
+                    .join('\n\n---\n\n');
+                sources = [...new Set(hits.map(h => h.title || h.source))];
+            }
+        } catch (err) {
+            console.error('RAG search error:', err.message);
+        }
+
+        const systemPrompt = context
+            ? `Anda adalah asisten Safety Officer (P2H & ERT) di PT Alam Lestari Baratamaindo. Jawab dalam Bahasa Indonesia yang ringkas dan profesional.
+
+ATURAN WAJIB:
+1. Jawab HANYA berdasarkan dokumen prosedur di bawah. Dilarang menambahkan pengetahuan umum, praktik industri, atau asumsi Anda sendiri.
+2. Sebutkan nomor rujukan seperti [1] pada setiap poin yang Anda ambil dari dokumen.
+3. Jika dokumen tidak memuat jawabannya, katakan singkat bahwa prosedurnya tidak ditemukan di dokumen yang tersedia, lalu sebutkan dokumen mana yang paling mungkin memuatnya. JANGAN melengkapi dengan saran umum seperti "secara umum biasanya...". Ini dokumen keselamatan kerja - jawaban yang mengarang bisa membahayakan orang.
+
+FORMAT JAWABAN (dibaca di layar HP, jadi harus ringkas):
+- Maksimal 8 poin. Tiap poin satu kalimat pendek.
+- Tulis tiap poin di baris baru sendiri, diawali "1. ", "2. ", dst. Jangan gabungkan beberapa poin dalam satu baris.
+- Jangan pakai heading, tabel, atau blok kode.
+- Tutup dengan satu kalimat kesimpulan hanya jika perlu.
+
+=== DOKUMEN PROSEDUR ===
+${context}
+=== AKHIR DOKUMEN ===`
+            : "Anda adalah asisten Safety Officer (P2H & ERT) yang ahli. Jawablah dengan ringkas, ramah, dan profesional dalam Bahasa Indonesia. Bantu pengguna menganalisa masalah unit atau prosedur keselamatan. Jika ditanya prosedur spesifik perusahaan yang tidak Anda ketahui, katakan dokumennya belum tersedia.";
 
         const completion = await openai.chat.completions.create({
             messages: [
-                { role: "system", content: "Anda adalah asisten Safety Officer (P2H & ERT) yang ahli. Jawablah dengan ringkas, ramah, dan profesional dalam Bahasa Indonesia. Bantu pengguna menganalisa masalah unit atau prosedur keselamatan." },
+                { role: "system", content: systemPrompt },
                 { role: "user", content: message }
             ],
-            model: "gpt-3.5-turbo", // or gpt-4o if available/preferred
+            model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
         });
 
         const reply = completion.choices[0].message.content;
-        res.json({ reply });
+
+        // Simpan ke riwayat. Kalau gagal, jawaban tetap dikirim ke pengguna.
+        let conversationId = req.body.conversationId || null;
+        const employeeId = getEmployeeId(req);
+        if (employeeId) {
+            try {
+                if (conversationId) {
+                    // Pastikan percakapan memang milik pengguna ini
+                    const owned = await pool.query(
+                        'SELECT id FROM chat_conversations WHERE id = $1 AND employee_id = $2',
+                        [conversationId, employeeId]
+                    );
+                    if (!owned.rows.length) conversationId = null;
+                }
+
+                if (!conversationId) {
+                    const title = message.length > 60 ? message.slice(0, 60) + '...' : message;
+                    const created = await pool.query(
+                        'INSERT INTO chat_conversations (employee_id, title) VALUES ($1, $2) RETURNING id',
+                        [employeeId, title]
+                    );
+                    conversationId = created.rows[0].id;
+                }
+
+                await pool.query(
+                    `INSERT INTO chat_messages (conversation_id, role, content, sources)
+                     VALUES ($1, 'user', $2, NULL), ($1, 'model', $3, $4)`,
+                    [conversationId, message, reply, JSON.stringify(sources)]
+                );
+                await pool.query(
+                    'UPDATE chat_conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+                    [conversationId]
+                );
+            } catch (err) {
+                console.error('Simpan riwayat chat gagal:', err.message);
+            }
+        }
+
+        res.json({ reply, sources, conversationId });
     } catch (err) {
         console.error('Chat error:', err);
         res.status(500).json({ message: 'Gagal menghubungi AI: ' + err.message });
+    }
+});
+
+// Daftar percakapan milik pengguna
+app.get('/api/chat/conversations', async (req, res) => {
+    const employeeId = getEmployeeId(req);
+    if (!employeeId) return res.status(401).json({ message: 'No token provided' });
+
+    try {
+        const { rows } = await pool.query(
+            `SELECT c.id, c.title, c.updated_at,
+                    (SELECT COUNT(*) FROM chat_messages m WHERE m.conversation_id = c.id) AS message_count
+             FROM chat_conversations c
+             WHERE c.employee_id = $1
+             ORDER BY c.updated_at DESC
+             LIMIT 50`,
+            [employeeId]
+        );
+        res.json(rows);
+    } catch (err) {
+        console.error('List riwayat chat error:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Isi satu percakapan
+app.get('/api/chat/conversations/:id', async (req, res) => {
+    const employeeId = getEmployeeId(req);
+    if (!employeeId) return res.status(401).json({ message: 'No token provided' });
+
+    try {
+        const owned = await pool.query(
+            'SELECT id FROM chat_conversations WHERE id = $1 AND employee_id = $2',
+            [req.params.id, employeeId]
+        );
+        if (!owned.rows.length) return res.status(404).json({ message: 'Percakapan tidak ditemukan' });
+
+        const { rows } = await pool.query(
+            `SELECT id, role, content, sources, created_at
+             FROM chat_messages WHERE conversation_id = $1 ORDER BY id`,
+            [req.params.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        console.error('Detail riwayat chat error:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Hapus percakapan (pesan ikut terhapus lewat ON DELETE CASCADE)
+app.delete('/api/chat/conversations/:id', async (req, res) => {
+    const employeeId = getEmployeeId(req);
+    if (!employeeId) return res.status(401).json({ message: 'No token provided' });
+
+    try {
+        const { rowCount } = await pool.query(
+            'DELETE FROM chat_conversations WHERE id = $1 AND employee_id = $2',
+            [req.params.id, employeeId]
+        );
+        if (!rowCount) return res.status(404).json({ message: 'Percakapan tidak ditemukan' });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Hapus riwayat chat error:', err);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 

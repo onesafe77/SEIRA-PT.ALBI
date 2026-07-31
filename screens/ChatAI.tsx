@@ -1,9 +1,68 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Image as ImageIcon, Bot, Sparkles, RefreshCw, MoreVertical } from 'lucide-react';
+// History diberi alias: namanya bentrok dengan konstruktor global window.History
+import { Send, Mic, Image as ImageIcon, Bot, Sparkles, RefreshCw, MoreVertical, FileText, History as HistoryIcon, X, Trash2 } from 'lucide-react';
 import { ChatMessage } from '../types';
 import { QUICK_PROMPTS } from '../constants';
 import { API_BASE_URL } from '../utils/api';
 
+
+interface Conversation {
+  id: number;
+  title: string;
+  updated_at: string;
+  message_count: string;
+}
+
+// Jawaban AI datang sebagai teks markdown sederhana. Komponen ini merapikannya:
+// poin bernomor jadi baris tersendiri, **tebal** jadi bold, rujukan [1] jadi badge kecil.
+const FormattedText: React.FC<{ text: string }> = ({ text }) => {
+  const renderInline = (line: string) =>
+    line.split(/(\*\*[^*]+\*\*|\[\d+\])/g).map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+      }
+      if (/^\[\d+\]$/.test(part)) {
+        return (
+          <sup key={i} className="text-[10px] text-blue-500 font-semibold ml-0.5">{part}</sup>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+
+  // Sebagian jawaban datang tanpa baris baru antar poin, jadi dipisahkan manual
+  const lines = text
+    .replace(/\s+(\d+\.\s)/g, '\n$1')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="space-y-2">
+      {lines.map((line, i) => {
+        const numbered = line.match(/^(\d+)\.\s+(.*)$/);
+        const bullet = line.match(/^[-*•]\s+(.*)$/);
+
+        if (numbered) {
+          return (
+            <div key={i} className="flex gap-2">
+              <span className="font-semibold text-blue-600 shrink-0">{numbered[1]}.</span>
+              <span className="flex-1">{renderInline(numbered[2])}</span>
+            </div>
+          );
+        }
+        if (bullet) {
+          return (
+            <div key={i} className="flex gap-2">
+              <span className="text-blue-600 shrink-0">•</span>
+              <span className="flex-1">{renderInline(bullet[1])}</span>
+            </div>
+          );
+        }
+        return <p key={i}>{renderInline(line)}</p>;
+      })}
+    </div>
+  );
+};
 
 export const ChatScreen: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -11,14 +70,87 @@ export const ChatScreen: React.FC = () => {
   ]);
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  // Percakapan yang sedang menunggu konfirmasi hapus
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const authHeader = () => ({ 'Authorization': `Bearer ${localStorage.getItem('token')}` });
+
+  const openHistory = async () => {
+    setShowHistory(true);
+    setConfirmDeleteId(null);
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/chat/conversations`, { headers: authHeader() });
+      setConversations(res.ok ? await res.json() : []);
+    } catch {
+      setConversations([]);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
+  const openConversation = async (id: number) => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/chat/conversations/${id}`, { headers: authHeader() });
+      if (!res.ok) throw new Error('Gagal memuat percakapan');
+      const rows = await res.json();
+
+      setMessages(rows.map((r: any) => ({
+        id: String(r.id),
+        role: r.role,
+        text: r.content,
+        timestamp: new Date(r.created_at),
+        sources: r.sources || undefined,
+      })));
+      setConversationId(id);
+      setShowHistory(false);
+    } catch (err) {
+      console.error('Buka percakapan gagal:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const deleteConversation = async (id: number) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/chat/conversations/${id}`, {
+        method: 'DELETE',
+        headers: authHeader(),
+      });
+      if (!res.ok) return;
+      setConversations(prev => prev.filter(c => c.id !== id));
+      // Kalau percakapan yang dibuka ikut terhapus, kosongkan layar chat
+      if (conversationId === id) {
+        setMessages([]);
+        setConversationId(null);
+      }
+    } catch (err) {
+      console.error('Hapus percakapan gagal:', err);
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
+
+  // Digulir lewat kontainernya, bukan scrollIntoView: elemen penanda berada
+  // sebelum padding bawah sehingga scroll berhenti terlalu awal dan pesan
+  // terakhir tertutup kolom input. Timeout dipakai (bukan requestAnimationFrame)
+  // supaya tetap jalan saat tab sedang tidak aktif, dan scroll dibuat instan
+  // karena animasi smooth ikut berhenti di kondisi yang sama.
   useEffect(() => {
-    scrollToBottom();
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const id = setTimeout(() => {
+      el.scrollTop = el.scrollHeight;
+    }, 0);
+    return () => clearTimeout(id);
   }, [messages, isThinking]);
 
   const handleSend = async (text: string = inputText) => {
@@ -40,8 +172,9 @@ export const ChatScreen: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, conversationId }),
       });
 
       const data = await response.json();
@@ -50,11 +183,15 @@ export const ChatScreen: React.FC = () => {
         throw new Error(data.message || 'Gagal terhubung ke server');
       }
 
+      // Percakapan baru dibuatkan server pada pesan pertama
+      if (data.conversationId) setConversationId(data.conversationId);
+
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',
         text: data.reply || "Maaf, terjadi kesalahan.",
-        timestamp: new Date()
+        timestamp: new Date(),
+        sources: data.sources
       };
       setMessages(prev => [...prev, botMsg]);
 
@@ -72,8 +209,10 @@ export const ChatScreen: React.FC = () => {
     }
   };
 
+  // Mulai percakapan baru: percakapan lama tetap tersimpan di riwayat
   const handleReset = () => {
     setMessages([]);
+    setConversationId(null);
   }
 
   return (
@@ -94,17 +233,111 @@ export const ChatScreen: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={openHistory}
+            className="w-10 h-10 rounded-full bg-white text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-all border border-slate-100"
+            title="Riwayat Chat"
+          >
+            <HistoryIcon size={18} />
+          </button>
+          <button
             onClick={handleReset}
             className="w-10 h-10 rounded-full bg-white text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-all border border-slate-100"
-            title="Reset Chat"
+            title="Chat Baru"
           >
             <RefreshCw size={18} />
           </button>
         </div>
       </div>
 
+      {/* Panel Riwayat Chat */}
+      {showHistory && (
+        <div className="absolute inset-0 z-[60] flex flex-col bg-black/30 backdrop-blur-sm animate-fade-in">
+          <div className="mt-auto bg-white rounded-t-[28px] max-h-[75%] flex flex-col shadow-float">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100">
+              <h2 className="font-bold text-slate-800">Riwayat Chat</h2>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="w-9 h-9 rounded-full text-slate-400 hover:bg-slate-100 flex items-center justify-center"
+                title="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {loadingHistory && (
+                <p className="text-center text-sm text-slate-400 py-8">Memuat...</p>
+              )}
+
+              {!loadingHistory && conversations.length === 0 && (
+                <p className="text-center text-sm text-slate-400 py-8">
+                  Belum ada percakapan tersimpan.
+                </p>
+              )}
+
+              {!loadingHistory && conversations.map((c) => (
+                confirmDeleteId === c.id ? (
+                  // Konfirmasi hapus: riwayat bisa jadi bahan telusur audit,
+                  // jadi jangan terhapus hanya karena salah sentuh.
+                  <div
+                    key={c.id}
+                    className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3"
+                  >
+                    <p className="text-sm font-medium text-slate-700 truncate">{c.title}</p>
+                    <p className="text-[11px] text-red-500 mt-0.5">
+                      Hapus percakapan ini beserta {c.message_count} pesannya? Tidak bisa dibatalkan.
+                    </p>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="flex-1 py-2 rounded-xl text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        onClick={() => deleteConversation(c.id)}
+                        className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={c.id}
+                    className={`flex items-center gap-2 rounded-2xl border transition-all ${conversationId === c.id
+                      ? 'border-blue-200 bg-blue-50'
+                      : 'border-slate-100 bg-white hover:bg-slate-50'
+                      }`}
+                  >
+                    <button
+                      onClick={() => openConversation(c.id)}
+                      className="flex-1 text-left px-4 py-3 min-w-0"
+                    >
+                      <p className="text-sm font-medium text-slate-700 truncate">{c.title}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {new Date(c.updated_at).toLocaleString('id-ID', {
+                          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                        })} · {c.message_count} pesan
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(c.id)}
+                      className="w-10 h-10 mr-2 rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center shrink-0"
+                      title="Hapus percakapan"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 pb-40 space-y-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 pb-52 space-y-6">
 
         {/* Welcome State (If no messages) */}
         {messages.length === 0 && (
@@ -145,13 +378,29 @@ export const ChatScreen: React.FC = () => {
                 </div>
               )}
 
-              <div className={`max-w-[80%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+              <div className={`flex flex-col ${isUser ? 'items-end max-w-[80%]' : 'items-start max-w-[88%]'}`}>
                 <div className={`px-5 py-3.5 text-[15px] leading-relaxed shadow-sm transition-all ${isUser
                   ? 'bg-blue-600 text-white rounded-t-[24px] rounded-bl-[24px] rounded-br-[6px] shadow-blue-500/20'
                   : 'bg-white text-slate-700 border border-slate-100 rounded-t-[24px] rounded-br-[24px] rounded-bl-[6px] shadow-card'
                   }`}>
-                  {msg.text}
+                  {isUser ? msg.text : <FormattedText text={msg.text} />}
                 </div>
+
+                {/* Dokumen prosedur yang jadi rujukan jawaban */}
+                {!isUser && msg.sources && msg.sources.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 px-1">
+                    {msg.sources.map((source) => (
+                      <span
+                        key={source}
+                        className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-white border border-slate-200 rounded-full px-2 py-1"
+                      >
+                        <FileText size={10} />
+                        {source}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <span className="text-[10px] text-slate-400 mt-1.5 px-1 font-medium">
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>

@@ -56,6 +56,7 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: Date;
+  sources?: string[];
 }
 
 export interface KPI {
