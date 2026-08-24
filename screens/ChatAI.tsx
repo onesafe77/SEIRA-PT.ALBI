@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 // History diberi alias: namanya bentrok dengan konstruktor global window.History
-import { Send, Mic, Image as ImageIcon, Bot, Sparkles, RefreshCw, MoreVertical, FileText, History as HistoryIcon, X, Trash2 } from 'lucide-react';
+import { Send, Mic, Image as ImageIcon, Bot, Sparkles, RefreshCw, MoreVertical, FileText, History as HistoryIcon, X, Trash2, Clock } from 'lucide-react';
 import { ChatMessage } from '../types';
 import { QUICK_PROMPTS } from '../constants';
 import { API_BASE_URL } from '../utils/api';
@@ -122,6 +122,7 @@ export const ChatScreen: React.FC = () => {
         text: r.content,
         timestamp: new Date(r.created_at),
         sources: r.sources || undefined,
+        durasiMs: r.durasi_ms ?? undefined,
       })));
       setConversationId(id);
       setShowHistory(false);
@@ -205,7 +206,8 @@ export const ChatScreen: React.FC = () => {
         role: 'model',
         text: data.reply || "Maaf, terjadi kesalahan.",
         timestamp: new Date(),
-        sources: data.sources
+        sources: data.sources,
+        durasiMs: data.durasiMs
       };
       setMessages(prev => [...prev, botMsg]);
 
@@ -417,8 +419,17 @@ export const ChatScreen: React.FC = () => {
                   </div>
                 )}
 
-                <span className="text-[10px] text-slate-400 mt-1.5 px-1 font-medium">
+                <span className="text-[10px] text-slate-400 mt-1.5 px-1 font-medium flex items-center gap-1.5">
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {!isUser && msg.durasiMs != null && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="inline-flex items-center gap-1 text-slate-500">
+                        <Clock size={10} />
+                        dijawab dalam {(msg.durasiMs / 1000).toFixed(1)} detik
+                      </span>
+                    </>
+                  )}
                 </span>
               </div>
             </div>

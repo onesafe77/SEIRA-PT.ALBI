@@ -77,6 +77,8 @@ pool.query('SELECT NOW()', (err, res) => {
                 sources JSONB,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )`,
+            // Lama proses disimpan agar dapat dilaporkan sebagai bukti waktu layanan
+            `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS durasi_ms INTEGER`,
             `CREATE INDEX IF NOT EXISTS chat_conversations_employee_idx
                 ON chat_conversations (employee_id, updated_at DESC)`,
             `CREATE INDEX IF NOT EXISTS chat_messages_conversation_idx
@@ -406,6 +408,7 @@ app.get('/api/inspections/summary', async (req, res) => {
 });
 // AI Chat Endpoint
 app.post('/api/chat', async (req, res) => {
+    const mulai = Date.now();   // untuk menampilkan lama proses ke pengguna
     try {
         const { message } = req.body;
 
@@ -439,9 +442,10 @@ app.post('/api/chat', async (req, res) => {
             ? `Anda adalah SIERA AI, asisten prosedur dan K3 di PT Alam Lestari Baratamaindo. Jawab dalam Bahasa Indonesia yang ringkas dan profesional.
 
 ATURAN WAJIB:
-1. Jawab HANYA berdasarkan dokumen prosedur di bawah. Dilarang menambahkan pengetahuan umum, praktik industri, atau asumsi Anda sendiri.
+1. Jawab HANYA berdasarkan dokumen prosedur di bawah. Dilarang menambahkan pengetahuan umum, praktik industri, atau asumsi Anda sendiri. Ini dokumen keselamatan kerja - jawaban yang mengarang bisa membahayakan orang.
 2. Sebutkan nomor rujukan seperti [1] pada setiap poin yang Anda ambil dari dokumen.
-3. Jika dokumen tidak memuat jawabannya, katakan singkat bahwa prosedurnya tidak ditemukan di dokumen yang tersedia, lalu sebutkan dokumen mana yang paling mungkin memuatnya. JANGAN melengkapi dengan saran umum seperti "secara umum biasanya...". Ini dokumen keselamatan kerja - jawaban yang mengarang bisa membahayakan orang.
+3. Potongan dokumen di bawah sering terpenggal di tengah kalimat karena diambil sebagian. Itu WAJAR dan BUKAN alasan menolak menjawab. Susun jawaban dari ketentuan yang memang ada, walaupun tidak mencakup seluruh prosedur.
+4. Katakan tidak ditemukan HANYA jika benar-benar tidak ada satu pun potongan yang membahas hal yang ditanyakan. Jangan menolak hanya karena merasa informasinya kurang lengkap - sampaikan yang ada lebih dulu, lalu boleh tambahkan satu kalimat bahwa rinciannya dapat dilihat pada dokumen sumber.
 
 FORMAT JAWABAN (dibaca di layar HP, jadi harus ringkas):
 - Maksimal 8 poin. Tiap poin satu kalimat pendek.
@@ -463,6 +467,9 @@ ${context}
         });
 
         const reply = completion.choices[0].message.content;
+        // Dihitung sekali di sini: lama sampai jawaban siap, di luar waktu simpan riwayat,
+        // supaya angka yang tampil di layar sama dengan yang tercatat di basis data.
+        const durasiMs = Date.now() - mulai;
 
         // Simpan ke riwayat. Kalau gagal, jawaban tetap dikirim ke pengguna.
         let conversationId = req.body.conversationId || null;
@@ -488,9 +495,9 @@ ${context}
                 }
 
                 await pool.query(
-                    `INSERT INTO chat_messages (conversation_id, role, content, sources)
-                     VALUES ($1, 'user', $2, NULL), ($1, 'model', $3, $4)`,
-                    [conversationId, message, reply, JSON.stringify(sources)]
+                    `INSERT INTO chat_messages (conversation_id, role, content, sources, durasi_ms)
+                     VALUES ($1, 'user', $2, NULL, NULL), ($1, 'model', $3, $4, $5)`,
+                    [conversationId, message, reply, JSON.stringify(sources), durasiMs]
                 );
                 await pool.query(
                     'UPDATE chat_conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
@@ -501,7 +508,8 @@ ${context}
             }
         }
 
-        res.json({ reply, sources, conversationId });
+        console.log(`AI Chat selesai dalam ${(durasiMs / 1000).toFixed(1)} detik`);
+        res.json({ reply, sources, conversationId, durasiMs });
     } catch (err) {
         console.error('Chat error:', err);
         res.status(500).json({ message: 'Gagal menghubungi AI: ' + err.message });
@@ -543,7 +551,7 @@ app.get('/api/chat/conversations/:id', async (req, res) => {
         if (!owned.rows.length) return res.status(404).json({ message: 'Percakapan tidak ditemukan' });
 
         const { rows } = await pool.query(
-            `SELECT id, role, content, sources, created_at
+            `SELECT id, role, content, sources, durasi_ms, created_at
              FROM chat_messages WHERE conversation_id = $1 ORDER BY id`,
             [req.params.id]
         );

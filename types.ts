@@ -57,6 +57,7 @@ export interface ChatMessage {
   text: string;
   timestamp: Date;
   sources?: string[];
+  durasiMs?: number;   // lama AI menyusun jawaban
 }
 
 export interface KPI {
